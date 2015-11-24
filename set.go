@@ -202,8 +202,9 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 	if vSect.Kind() == reflect.Map {
 		vst := vSect.Type()
 		if vst.Key().Kind() != reflect.String ||
-			vst.Elem().Kind() != reflect.Ptr ||
-			vst.Elem().Elem().Kind() != reflect.Struct {
+			(vst.Elem().Kind() != reflect.Interface &&
+				(vst.Elem().Kind() != reflect.Ptr ||
+					vst.Elem().Elem().Kind() != reflect.Struct)) {
 			panic(fmt.Errorf("map field for section must have string keys and "+
 				" pointer-to-struct values: section %q", sect))
 		}
@@ -212,12 +213,25 @@ func set(cfg interface{}, sect, sub, name string, blank bool, value string) erro
 		}
 		k := reflect.ValueOf(sub)
 		pv := vSect.MapIndex(k)
+
 		if !pv.IsValid() {
+			if vSect.Type().Elem().Kind() == reflect.Interface {
+				return fmt.Errorf("invalid subsection for interface map: section [%s %q]", sect, sub)
+			}
 			vType := vSect.Type().Elem().Elem()
 			pv = reflect.New(vType)
 			vSect.SetMapIndex(k, pv)
 		}
 		vSect = pv.Elem()
+
+		if vst.Elem().Kind() == reflect.Interface {
+			if vSect.Kind() != reflect.Ptr {
+				panic(fmt.Errorf("map field for section with interface values must "+
+					"have pointer contents: section %q", sect))
+			}
+
+			vSect = vSect.Elem()
+		}
 	} else if vSect.Kind() != reflect.Struct {
 		panic(fmt.Errorf("field for section must be a map or a struct: "+
 			"section %q", sect))
