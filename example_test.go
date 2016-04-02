@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-import "gopkg.in/gcfg.v1"
+import "github.com/rdnelson/gcfg"
 
 func ExampleReadStringInto() {
 	cfgStr := `; Comment line
